@@ -1,0 +1,14 @@
+[Unit]
+Description=Sonatype Nexus 3+
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=nexus
+ExecStart=/usr/local/bin/nexus-env nexus start
+ExecStop=/usr/local/bin/nexus-env nexus stop
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target

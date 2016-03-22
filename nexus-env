@@ -1,0 +1,84 @@
+#!/bin/bash
+
+reconfigure() {
+  echo "Copying default configuration to empty etc folder '$NEXUS_ETC_DIR'"
+  cp -vaf "${NEXUS_HOME}/etc/." "${NEXUS_ETC_DIR}"
+  chown -R "${NEXUS_USER}" "${NEXUS_ETC_DIR}"
+  chown "${NEXUS_USER}:root" "${NEXUS_ETC_DIR}"
+  chmod 0700 "${NEXUS_ETC_DIR}"
+}
+
+setup() {
+  # --- [ Checking the ETC folder ] ---
+
+  if [ -z "$(ls -A "${NEXUS_ETC_DIR}")" ]; then
+    reconfigure
+  fi
+
+  # --- [ Checking Nexus user's UID ] ---
+
+  if [ ! -z "$NEXUS_UID" ]; then
+    echo "Configuring UID $NEXUS_UID for user $NEXUS_USER"
+    usermod -u ${NEXUS_UID} ${NEXUS_USER}
+    chown -R ${NEXUS_USER} ${NEXUS_LIB_PREFIX} ${NEXUS_DATA_DIR} ${NEXUS_ETC_DIR} ${NEXUS_TMP_DIR}
+  fi
+
+  # --- [ General fixes ] ---
+
+  # I wonder if this is really needed.
+  [ ! -e ${NEXUS_LIB_PREFIX}/uprefs ] && su nexus -c "mkdir -p ${NEXUS_LIB_PREFIX}/uprefs"
+
+  # --- [ Exporting configuration ] ---
+
+  cat > ${NEXUS_HOME}/bin/nexus.vmoptions <<-CONFIG
+-server
+-Xms${JAVA_MIN_HEAP}
+-Xmx${JAVA_MAX_HEAP}
+-Djava.net.preferIPv4Stack=true
+-Dkaraf.home=${NEXUS_HOME}
+-Dkaraf.base=${NEXUS_HOME}
+-Dkaraf.etc=${NEXUS_ETC_DIR}
+-Djava.util.logging.config.file=${NEXUS_ETC_DIR}/java.util.logging.properties
+-Dkaraf.data=${NEXUS_DATA_DIR}
+-Dkaraf.instances=${NEXUS_DATA_DIR}/instances
+-Djava.io.tmpdir=${NEXUS_TMP_DIR}
+-Dkaraf.startLocalConsole=false
+-Djava.util.prefs.userRoot=${NEXUS_LIB_PREFIX}/uprefs
+CONFIG
+
+  cat > ${NEXUS_HOME}/bin/nexus.rc <<-CONFIG
+# Not working, may be fixed after M7: https://issues.sonatype.org/browse/NEXUS-9437
+#run_as_user=${NEXUS_USER}
+piddir=${NEXUS_DATA_DIR}
+CONFIG
+}
+
+if [ "$#" -gt 0 ]; then
+  case $1 in
+  setup)
+    setup
+    ;;
+  reconfigure)
+    setup
+    reconfigure
+    ;;
+  exec)
+    setup
+    shift
+    CMD="$1"
+    shift
+    $CMD $@
+    ;;
+  nexus)
+    setup
+    shift
+    su nexus -c "${NEXUS_HOME}/bin/nexus $@"
+    ;;
+  *)
+    $0 exec $@
+    ;;
+  esac
+else
+  $0 nexus run
+fi
+
