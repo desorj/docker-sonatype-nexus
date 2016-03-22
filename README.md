@@ -5,14 +5,14 @@ This is a Sonatype Nexus 3+ (Milestone 7+) container for Docker. It will survive
 Usage is the same as ever for a container meant to be a service, port 8081 is exported by default:
 
 ```
-$ docker -d -p 8081:8081 --name nexus flisboac/docker-sonatype-nexus
+$ docker run -d -p 8081:8081 --name nexus flisboac/docker-sonatype-nexus
 ```
 
 `/var/lib/nexus/data` is Nexus' data folder, and `/etc/nexus` is its configuration folder. Both are equivalent to setting `-Dkaraf.data` and `-Dkaraf.etc`, respectively. You may volume-mount them if needed, but be sure to set the environment variable `NEXUS_UID` to avoid running into permission-related issues. For example:
 
 
 ```
-$ docker -d \
+$ docker run -d \
   -p 8081:8081 \
   -e NEXUS_UID=$(id -u) \
   -v /path/to/nexus/data:/var/lib/nexus/data
